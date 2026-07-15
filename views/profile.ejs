@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vaultline — Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- <aside class="sidebar" id="sidebar-mount"></aside> -->
+
+    <aside class="sidebar">
+  <div class="brand">
+    <span class="mark">V</span>
+    <span>Vaultline</span>
+  </div>
+  <nav>
+    <a class="nav-item" href="/dashboard"><span class="icon">&#9635;</span> Dashboard</a>
+    <a class="nav-item" href="/transactions"><span class="icon">&#8646;</span> Transactions</a>
+    <a class="nav-item active" href="/profile"><span class="icon">&#9679;</span> Profile</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">--</div>
+      <div>
+        <div id="sidebar-username" style="font-weight:600;color:#F6F3EC;">Guest</div>
+        <div id="sidebar-account" style="font-family:var(--font-mono);font-size:0.75rem;"></div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-block" id="logout-btn" style="color:#F6F3EC;border-color:rgba(246,243,236,0.25);">Log out</button>
+  </div>
+</aside>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <div class="eyebrow">Account</div>
+          <h1>Profile</h1>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.6em;display:flex;align-items:center;gap:1.2em;">
+        <div class="avatar" id="profile-avatar" style="width:56px;height:56px;font-size:1.2rem;"></div>
+        <div>
+          <h3 id="profile-name" style="margin-bottom:0.15em;"></h3>
+          <div class="mono" style="color:var(--text-dim);font-size:0.85rem;" id="profile-account"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.6em;">
+        <h3>Personal details</h3>
+        <div class="success-msg" id="profile-success">Profile updated.</div>
+        <form id="profile-form">
+          <div class="field-row">
+            <div class="field">
+              <label for="p-name">Full name</label>
+              <input type="text" id="p-name" required />
+            </div>
+            <div class="field">
+              <label for="p-email">Email</label>
+              <input type="email" id="p-email" required />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="p-phone">Phone</label>
+              <input type="tel" id="p-phone" />
+            </div>
+            <div class="field">
+              <label for="p-account">Account number</label>
+              <input type="text" id="p-account" class="mono" disabled />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Security</h3>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="t-title">Two-factor authentication</div>
+            <div class="t-sub">Require a one-time code in addition to your password.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-2fa" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="t-title">Login alerts</div>
+            <div class="t-sub">Get notified whenever your account is accessed from a new device.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-alerts" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("profile");
+
+    const user = currentUser();
+    const initials = user.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+    document.getElementById("profile-avatar").textContent = initials;
+    document.getElementById("profile-name").textContent = user.name;
+    document.getElementById("profile-account").textContent = user.accountNumber;
+
+    document.getElementById("p-name").value = user.name;
+    document.getElementById("p-email").value = user.email;
+    document.getElementById("p-phone").value = user.phone;
+    document.getElementById("p-account").value = user.accountNumber;
+
+    document.getElementById("profile-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const users = getUsers();
+      const idx = users.findIndex((u) => u.username === user.username);
+      users[idx].name = document.getElementById("p-name").value.trim();
+      users[idx].email = document.getElementById("p-email").value.trim();
+      users[idx].phone = document.getElementById("p-phone").value.trim();
+      localStorage.setItem(DB_KEYS.users, JSON.stringify(users));
+
+      document.getElementById("profile-name").textContent = users[idx].name;
+      const success = document.getElementById("profile-success");
+      success.classList.add("show");
+      setTimeout(() => success.classList.remove("show"), 2500);
+    });
+
+    /* ---------- security toggles ---------- */
+    const secKey = DB_KEYS.security + user.username;
+    const security = JSON.parse(localStorage.getItem(secKey) || "{}");
+    const toggle2fa = document.getElementById("toggle-2fa");
+    const toggleAlerts = document.getElementById("toggle-alerts");
+    toggle2fa.checked = !!security.twoFactor;
+    toggleAlerts.checked = !!security.loginAlerts;
+
+    function saveSecurity() {
+      localStorage.setItem(
+        secKey,
+        JSON.stringify({ twoFactor: toggle2fa.checked, loginAlerts: toggleAlerts.checked })
+      );
+    }
+    toggle2fa.addEventListener("change", saveSecurity);
+    toggleAlerts.addEventListener("change", saveSecurity);
+  </script>
+</body>
+</html>

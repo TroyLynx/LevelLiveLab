@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vaultline — Transactions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- <aside class="sidebar" id="sidebar-mount"></aside> -->
+
+    <aside class="sidebar">
+  <div class="brand">
+    <span class="mark">V</span>
+    <span>Vaultline</span>
+  </div>
+  <nav>
+    <a class="nav-item" href="/dashboard"><span class="icon">&#9635;</span> Dashboard</a>
+    <a class="nav-item active" href="/transactions"><span class="icon">&#8646;</span> Transactions</a>
+    <a class="nav-item" href="/profile"><span class="icon">&#9679;</span> Profile</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">--</div>
+      <div>
+        <div id="sidebar-username" style="font-weight:600;color:#F6F3EC;">Guest</div>
+        <div id="sidebar-account" style="font-family:var(--font-mono);font-size:0.75rem;"></div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-block" id="logout-btn" style="color:#F6F3EC;border-color:rgba(246,243,236,0.25);">Log out</button>
+  </div>
+</aside>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <div class="eyebrow">Move money</div>
+          <h1>Transactions</h1>
+        </div>
+      </div>
+
+      <!-- Currency converter — signature element -->
+      <div class="converter">
+        <div class="eyebrow">Currency converter</div>
+        <h3 style="color:#F6F3EC;">Check a rate before you send</h3>
+        <div class="converter-grid">
+          <div class="field">
+            <label for="conv-amount">Amount</label>
+            <input type="number" id="conv-amount" value="100" min="0" step="0.01" />
+          </div>
+          <button type="button" class="swap-btn" id="swap-btn" title="Swap currencies">&#8646;</button>
+          <div class="field">
+            <label for="conv-from">From</label>
+            <select id="conv-from"></select>
+          </div>
+        </div>
+        <div class="field" style="margin-top:1em;">
+          <label for="conv-to">Convert to</label>
+          <select id="conv-to"></select>
+        </div>
+
+        <div class="odometer">
+          <div class="rate-line" id="rate-line"></div>
+          <div class="digit-wheel" id="digit-wheel"></div>
+          <div class="converted-currency" id="converted-currency-label"></div>
+        </div>
+
+        <div style="margin-top:1.4em;">
+          <button type="button" class="btn btn-brass" id="use-conversion-btn">Use this in a transaction &darr;</button>
+        </div>
+      </div>
+
+      <!-- Transaction form -->
+      <div class="card" style="margin-bottom:2em;">
+        <h3>New transaction</h3>
+        <p class="hint" style="margin-top:-0.4em;margin-bottom:1.2em;">Deposits add funds, withdrawals and transfers deduct from the selected currency balance.</p>
+
+        <div class="error-msg" id="tx-error"></div>
+        <div class="success-msg" id="tx-success"></div>
+
+        <form id="tx-form">
+          <div class="field-row">
+            <div class="field">
+              <label for="tx-type">Transaction type</label>
+              <select id="tx-type">
+                <option value="Deposit">Deposit</option>
+                <option value="Withdrawal">Withdrawal</option>
+                <option value="Transfer">Transfer</option>
+              </select>
+            </div>
+            <div class="field" id="recipient-field">
+              <label for="tx-recipient">Recipient</label>
+              <input type="text" id="tx-recipient" placeholder="Name or account number" />
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="tx-amount">Amount</label>
+              <input type="number" id="tx-amount" min="0.01" step="0.01" required />
+            </div>
+            <div class="field">
+              <label for="tx-currency">Currency</label>
+              <select id="tx-currency"></select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Submit transaction</button>
+        </form>
+      </div>
+
+      <div class="section-title">
+        <h3>Transaction history</h3>
+        <div class="rule"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Type</th>
+              <th style="text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    requireAuth();
+    renderSidebar("transactions");
+
+    /* ---------- populate currency selects ---------- */
+    const codes = Object.keys(RATES_TO_USD_BASE);
+    function fillSelect(select, defaultCode) {
+      select.innerHTML = codes
+        .map((c) => `<option value="${c}" ${c === defaultCode ? "selected" : ""}>${c} — ${CURRENCY_NAMES[c]}</option>`)
+        .join("");
+    }
+    const convFrom = document.getElementById("conv-from");
+    const convTo = document.getElementById("conv-to");
+    const txCurrency = document.getElementById("tx-currency");
+    fillSelect(convFrom, "USD");
+    fillSelect(convTo, "GHS");
+    fillSelect(txCurrency, "USD");
+
+    /* ---------- converter logic (odometer) ---------- */
+    const amountInput = document.getElementById("conv-amount");
+    const digitWheel = document.getElementById("digit-wheel");
+    const rateLine = document.getElementById("rate-line");
+    const convertedLabel = document.getElementById("converted-currency-label");
+
+    function runConversion() {
+      const amount = parseFloat(amountInput.value) || 0;
+      const from = convFrom.value;
+      const to = convTo.value;
+      const result = convertCurrency(amount, from, to);
+      const decimals = CURRENCY_DECIMALS[to] ?? 2;
+      const display = result.toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+      renderOdometer(digitWheel, display);
+      convertedLabel.textContent = to;
+
+      const unitRate = convertCurrency(1, from, to);
+      rateLine.textContent = `1 ${from} = ${unitRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${to} · indicative rate`;
+    }
+    [amountInput, convFrom, convTo].forEach((el) => el.addEventListener("input", runConversion));
+    runConversion();
+
+    document.getElementById("swap-btn").addEventListener("click", () => {
+      const tmp = convFrom.value;
+      convFrom.value = convTo.value;
+      convTo.value = tmp;
+      runConversion();
+    });
+
+    document.getElementById("use-conversion-btn").addEventListener("click", () => {
+      document.getElementById("tx-amount").value = amountInput.value;
+      txCurrency.value = convFrom.value;
+      document.getElementById("tx-form").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    /* ---------- transaction type toggling recipient field ---------- */
+    const txType = document.getElementById("tx-type");
+    const recipientField = document.getElementById("recipient-field");
+    function syncRecipientVisibility() {
+      recipientField.style.display = txType.value === "Transfer" ? "block" : "none";
+    }
+    txType.addEventListener("change", syncRecipientVisibility);
+    syncRecipientVisibility();
+
+    /* ---------- submit transaction ---------- */
+    const txForm = document.getElementById("tx-form");
+    const txError = document.getElementById("tx-error");
+    const txSuccess = document.getElementById("tx-success");
+
+    txForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      txError.classList.remove("show");
+      txSuccess.classList.remove("show");
+
+      const type = txType.value;
+      const amount = parseFloat(document.getElementById("tx-amount").value);
+      const currency = txCurrency.value;
+      const recipient = document.getElementById("tx-recipient").value.trim();
+
+      if (!amount || amount <= 0) {
+        txError.textContent = "Enter an amount greater than zero.";
+        txError.classList.add("show");
+        return;
+      }
+      if (type === "Transfer" && !recipient) {
+        txError.textContent = "Enter a recipient for the transfer.";
+        txError.classList.add("show");
+        return;
+      }
+
+      const balances = getBalances();
+      const isCredit = type === "Deposit";
+
+      if (!isCredit) {
+        const available = balances[currency] || 0;
+        if (available < amount) {
+          txError.textContent = `Insufficient ${currency} balance. Available: ${formatMoney(available, currency)}.`;
+          txError.classList.add("show");
+          return;
+        }
+        balances[currency] = available - amount;
+      } else {
+        balances[currency] = (balances[currency] || 0) + amount;
+      }
+      setBalances(balances);
+
+      const description =
+        type === "Transfer" ? `To: ${recipient}` :
+        type === "Deposit" ? "Manual deposit" : "Withdrawal";
+
+      addTransaction({
+        id: cryptoRandomId(),
+        date: Date.now(),
+        type,
+        party: description,
+        amount,
+        currency,
+        direction: isCredit ? "credit" : "debit",
+      });
+
+      txSuccess.textContent = `${type} of ${formatMoney(amount, currency)} recorded.`;
+      txSuccess.classList.add("show");
+      txForm.reset();
+      syncRecipientVisibility();
+      renderHistory();
+    });
+
+    /* ---------- history table ---------- */
+    function renderHistory() {
+      const body = document.getElementById("history-body");
+      const list = getTransactions();
+      if (list.length === 0) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="4">No transactions yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = list
+        .map(
+          (tx) => `
+        <tr>
+          <td>${formatDate(tx.date)}</td>
+          <td>${tx.party}</td>
+          <td>${tx.type}</td>
+          <td style="text-align:right;" class="mono">
+            <span class="badge ${tx.direction === "credit" ? "badge-credit" : "badge-debit"}">
+              ${tx.direction === "credit" ? "+" : "−"} ${formatMoney(tx.amount, tx.currency)}
+            </span>
+          </td>
+        </tr>`
+        )
+        .join("");
+    }
+    renderHistory();
+  </script>
+</body>
+</html>

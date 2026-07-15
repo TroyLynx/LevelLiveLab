@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vaultline — Log in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/style.css" />
+</head>
+<body>
+  <div class="auth-shell">
+    <div class="vault-dial spin" aria-hidden="true" id="vault-dial"></div>
+
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="mark">V</span>
+        <span>Vaultline</span>
+      </div>
+      <p class="auth-sub">Sign in to view balances, move money and convert currencies.</p>
+
+      <div class="error-msg" id="login-error">Incorrect username or password. Try again.</div>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+
+      <div class="demo-hint">
+        Demo access — Dont worry, nothing here for you :)
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    seedDemoData();
+    // If already logged in, skip straight to the dashboard.
+    if (currentUsername()) window.location.href = "dashboard.html";
+
+    // Build a ring of ticks around the vault dial purely for atmosphere.
+    const dial = document.getElementById("vault-dial");
+    for (let i = 0; i < 36; i++) {
+      const tick = document.createElement("div");
+      tick.className = "tick";
+      tick.style.transform = `rotate(${i * 10}deg)`;
+      dial.appendChild(tick);
+    }
+
+    const form = document.getElementById("login-form");
+    const errorBox = document.getElementById("login-error");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      if (login(username, password)) {
+        window.location.href = "dashboard.html";
+      } else {
+        errorBox.classList.add("show");
+      }
+    });
+  </script>
+</body>
+</html>
