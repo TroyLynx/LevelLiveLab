@@ -21,7 +21,7 @@
 
       <div class="error-msg" id="login-error">Incorrect username or password. Try again.</div>
 
-      <form id="login-form" novalidate>
+      <form id="login-form" method="post" action="/login">
         <div class="field">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" required />
@@ -40,7 +40,7 @@
   </div>
 
   <script src="/js/app.js"></script>
-  <script>
+  <!-- <script>
     seedDemoData();
     // If already logged in, skip straight to the dashboard.
     if (currentUsername()) window.location.href = "dashboard.html";
@@ -66,6 +66,6 @@
         errorBox.classList.add("show");
       }
     });
-  </script>
+  </script> -->
 </body>
 </html>
