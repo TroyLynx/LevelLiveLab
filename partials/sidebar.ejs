@@ -1,0 +1,21 @@
+  <aside class="sidebar">
+  <div class="brand">
+    <span class="mark">V</span>
+    <span>Vaultline</span>
+  </div>
+  <nav>
+    <a class="nav-item active" href="/dashboard"><span class="icon">&#9635;</span> Dashboard</a>
+    <a class="nav-item" href="/transactions"><span class="icon">&#8646;</span> Transactions</a>
+    <a class="nav-item" href="/profile/<%= id %>"><span class="icon">&#9679;</span> Profile</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebar-avatar">--</div>
+      <div>
+        <div id="sidebar-username" style="font-weight:600;color:#F6F3EC;"><%= username %></div>
+        <div id="sidebar-account" style="font-family:var(--font-mono);font-size:0.75rem;"></div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-block" style="color:#F6F3EC;border-color:rgba(246,243,236,0.25);">Log out</button>
+  </div>
+</aside>
